@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lazer Pay - Game Demo</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+  background: url('space.jpg') no-repeat center center fixed;
+  background-size: cover;
+  color: #fff;
+  font-family: Arial, sans-serif;
+  width: 100%;
+  overflow: hidden;
+}
+    #game {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      touch-action: none;
+    }
+    .jet {
+      position: absolute;
+      bottom: 80px;
+      width: 60px;
+      height: 60px;
+      background: url('jet.png') no-repeat center/contain;
+      left: 50%;
+      transform: translateX(-50%);
+    }
+    .laser {
+      position: absolute;
+      width: 4px;
+      height: 20px;
+      background: red;
+    }
+    .asteroid {
+      position: absolute;
+      width: 40px;
+      height: 40px;
+      background: url('rock.jpg') no-repeat center/contain;
+    }
+    #stats {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      background: rgba(0,0,0,0.5);
+      padding: 8px;
+      border-radius: 4px;
+      z-index: 10;
+    }
+       #usdStat {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background: rgba(0,0,0,0.5);
+      padding: 10px;
+      border-radius: 5px;
+      z-index: 10;
+    }
+    nav {
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+      background: #111;
+      border-bottom: 1px solid #444;
+      padding: 10px;
+      position: absolute;
+      bottom: 0;
+      width: 100%;
+      z-index: 4;
+    }
+    nav button {
+      background: none;
+      border: none;
+      color: #fff;
+      font-size: 16px;
+      cursor: pointer;
+      border-right: 1px solid #444;
+      padding: 10px;
+    }
+    nav button:last-child { border: none; }
+  </style>
+</head>
+<body>
+    
+    <nav>
+    <button onclick="location.href='game.html'">Play</button>
+    <button onclick="location.href='leaderboard.html'">Leaderboard</button>
+    <button onclick="location.href='payout.html'">Payout</button>
+    <button onclick="logout()">Logout</button>
+  </nav>
+  <div id="game">
+    <div id="stats">LMS: <span id="lms">0.0000</span></div>
+    <div id="usdStat">$: <span id="$">0.00</span></div>
+    <div class="jet" id="jet"></div>
+  </div>
+
+  <script>
+    const game = document.getElementById('game');
+    const jet = document.getElementById('jet');
+    const lmsDisplay = document.getElementById('lms');
+    let jetX = window.innerWidth / 2 - 30;
+    let shooting = false;
+    let lms = 0;
+
+    function updateJetPosition(x) {
+      jetX = Math.max(0, Math.min(window.innerWidth - 60, x - 30));
+      jet.style.left = jetX + 'px';
+    }
+
+    function shootLaser() {
+      const laser = document.createElement('div');
+      laser.className = 'laser';
+      laser.style.left = (jetX + 28) + 'px';
+      laser.style.top = (window.innerHeight - 140) + 'px';
+      game.appendChild(laser);
+
+      const interval = setInterval(() => {
+        const top = parseFloat(laser.style.top);
+        if (top < 0) {
+          laser.remove();
+          clearInterval(interval);
+        } else {
+          laser.style.top = (top - 10) + 'px';
+        }
+
+        document.querySelectorAll('.asteroid').forEach(ast => {
+          const a = ast.getBoundingClientRect();
+          const l = laser.getBoundingClientRect();
+          if (l.top < a.bottom && l.bottom > a.top && l.left < a.right && l.right > a.left) {
+            ast.remove();
+            laser.remove();
+            clearInterval(interval);
+            lms += 0.0001;
+            lmsDisplay.textContent = lms.toFixed(4);
+          }
+        });
+      }, 30);
+    }
+
+    function startAutoShooting() {
+      shootLaser();
+      const interval = setInterval(() => {
+        if (!shooting) return clearInterval(interval);
+        shootLaser();
+      }, 300);
+    }
+
+    // Touch support
+    game.addEventListener('touchstart', e => {
+      shooting = true;
+      updateJetPosition(e.touches[0].clientX);
+      startAutoShooting();
+    });
+    game.addEventListener('touchmove', e => {
+      updateJetPosition(e.touches[0].clientX);
+    });
+    game.addEventListener('touchend', () => shooting = false);
+
+    // Mouse support
+    game.addEventListener('mousedown', e => {
+      shooting = true;
+      updateJetPosition(e.clientX);
+      startAutoShooting();
+    });
+    game.addEventListener('mousemove', e => {
+      if (shooting) updateJetPosition(e.clientX);
+    });
+    game.addEventListener('mouseup', () => shooting = false);
+
+    // Asteroid spawner
+    setInterval(() => {
+      const asteroid = document.createElement('div');
+      asteroid.className = 'asteroid';
+      asteroid.style.left = Math.random() * (window.innerWidth - 40) + 'px';
+      asteroid.style.top = '0px';
+      game.appendChild(asteroid);
+
+      const fall = setInterval(() => {
+        const top = parseFloat(asteroid.style.top);
+        if (top > window.innerHeight) {
+          asteroid.remove();
+          clearInterval(fall);
+        } else {
+          asteroid.style.top = (top + 4) + 'px';
+        }
+      }, 30);
+    }, 800);
+  </script>
+</body>
+</html>

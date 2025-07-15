@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Lazer Pay – Login</title>
+  <style>
+    body { font-family: Arial; background: #000; color: #fff; display: flex; justify-content: center; align-items: center; height: 100vh; }
+    .box { background: #111; padding: 30px; border-radius: 10px; width: 300px; }
+    input, button { width: 100%; padding: 10px; margin: 10px 0; border: none; border-radius: 5px; }
+    input { background: #222; color: #fff; }
+    button { background: #00f; color: #fff; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <div class="box">
+  <h2>Lazer Pay</h2>
+  <input type="text" id="username" placeholder="Username (only for signup)">
+  <input type="email" id="email" placeholder="Email">
+  <input type="password" id="password" placeholder="Password">
+  <button onclick="login()">Login</button>
+  <button onclick="signup()">Signup</button>
+  <p style="text-align:center; margin-top: 10px;">
+    Don't have an account? <a href="register.html" style="color: #0af;">Register here</a>
+  </p>
+</div>
+
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js";
+    import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js";
+    import { getFirestore, setDoc, doc } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js";
+    import { firebaseConfig } from './firebase.js';
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    async function signup() {
+      const email = emailInput.value.trim();
+      const password = passwordInput.value.trim();
+      const username = usernameInput.value.trim();
+      if (!username) return alert("Username is required for signup.");
+
+      try {
+        const userCred = await createUserWithEmailAndPassword(auth, email, password);
+        await setDoc(doc(db, "users", userCred.user.uid), {
+          username, email, lms: 0, usd: 0
+        });
+        alert("Account created! Redirecting...");
+        location.href = "game.html";
+      } catch (err) {
+        alert("Signup error: " + err.message);
+      }
+    }
+
+    async function login() {
+      const email = emailInput.value.trim();
+      const password = passwordInput.value.trim();
+
+      try {
+        await signInWithEmailAndPassword(auth, email, password);
+        location.href = "game.html";
+      } catch (err) {
+        alert("Login error: " + err.message);
+      }
+    }
+
+    const emailInput = document.getElementById("email");
+    const passwordInput = document.getElementById("password");
+    const usernameInput = document.getElementById("username");
+  </script>
+</body>
+</html>
