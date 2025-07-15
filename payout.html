@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lazer Pay - Payout</title>
+  <style>
+    body { background: #000; color: #fff; font-family: Arial; margin: 0; padding: 0; }
+    nav {
+      background: #111;
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+      height: 50px;
+      border-bottom: 1px solid #444;
+    }
+    nav button {
+      background: none;
+      border: none;
+      color: #fff;
+      font-size: 16px;
+      cursor: pointer;
+    }
+    .container {
+      max-width: 500px;
+      margin: 20px auto;
+      padding: 20px;
+      background: #111;
+      border-radius: 8px;
+    }
+    h2 { text-align: center; margin-bottom: 20px; }
+    label { display: block; margin: 10px 0 5px; }
+    input, select, textarea {
+      width: 100%;
+      padding: 10px;
+      border: none;
+      border-radius: 5px;
+      margin-bottom: 10px;
+    }
+    button.submit-btn {
+      width: 100%;
+      padding: 12px;
+      background: green;
+      color: white;
+      font-size: 16px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    .history {
+      margin-top: 30px;
+    }
+    .entry {
+      background: #222;
+      padding: 10px;
+      margin: 10px 0;
+      border-left: 5px solid #555;
+    }
+    .entry.pending { border-color: orange; }
+    .entry.approved { border-color: green; }
+    .entry.rejected { border-color: red; }
+  </style>
+</head>
+<body>
+  <nav>
+    <button onclick="location.href='game.html'">Play</button>
+    <button onclick="location.href='leaderboard.html'">Leaderboard</button>
+    <button onclick="location.href='payout.html'">Payout</button>
+    <button onclick="logout()">Logout</button>
+  </nav>
+
+  <div class="container">
+    <h2>Request a Payout</h2>
+    <label for="amount">Amount ($)</label>
+    <input type="number" id="amount" min="50" placeholder="Minimum $50" />
+
+    <label for="method">Wallet/Bank Type</label>
+    <select id="method">
+      <option value="Ethereum">Ethereum</option>
+      <option value="BSC">BSC</option>
+      <option value="Solana">Solana</option>
+      <option value="Bank">Bank Transfer (Nigeria)</option>
+    </select>
+
+    <label for="destination">Wallet Address / Bank Details</label>
+    <textarea id="destination" rows="3" placeholder="Enter address or bank account info"></textarea>
+
+    <button class="submit-btn" onclick="submitRequest()">Submit Payout</button>
+
+    <div class="history">
+      <h3>Your Requests</h3>
+      <div id="requests"></div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js";
+    import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js";
+    import { getFirestore, doc, getDoc, addDoc, collection, query, where, getDocs, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js";
+    import { firebaseConfig } from './firebase.js';
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth();
+    const db = getFirestore();
+
+    let currentUser;
+
+    function logout() {
+      signOut(auth);
+    }
+
+    onAuthStateChanged(auth, async user => {
+      if (!user) return location.href = 'index.html';
+      currentUser = user;
+      loadRequests();
+    });
+
+    async function submitRequest() {
+      const amount = parseFloat(document.getElementById('amount').value);
+      const method = document.getElementById('method').value;
+      const destination = document.getElementById('destination').value.trim();
+
+      if (isNaN(amount) || amount < 50) return alert('Minimum payout is $50');
+      if (!destination) return alert('Enter wallet or bank info');
+
+      const snap = await getDoc(doc(db, 'users', currentUser.uid));
+      const data = snap.data();
+      const usd = data?.usd || 0;
+
+      if (amount > usd) return alert(`You only have $${usd.toFixed(2)}`);
+
+      await addDoc(collection(db, 'payouts'), {
+        uid: currentUser.uid,
+        username: data?.username || '',
+        email: currentUser.email,
+        amount,
+        method,
+        destination,
+        status: 'pending',
+        createdAt: serverTimestamp()
+      });
+
+      alert('Payout request submitted!');
+      document.getElementById('amount').value = '';
+      document.getElementById('destination').value = '';
+      loadRequests();
+    }
+
+    async function loadRequests() {
+      const q = query(collection(db, 'payouts'), where('uid', '==', currentUser.uid));
+      const snap = await getDocs(q);
+      const requests = document.getElementById('requests');
+      requests.innerHTML = '';
+
+      snap.forEach(doc => {
+        const p = doc.data();
+        const div = document.createElement('div');
+        div.className = `entry ${p.status}`;
+        div.innerHTML = `
+          <strong>$${p.amount.toFixed(2)}</strong> via <em>${p.method}</em><br>
+          <small>Status: <b>${p.status.toUpperCase()}</b></small><br>
+          <small>To: ${p.destination}</small>
+        `;
+        requests.appendChild(div);
+      });
+    }
+  </script>
+</body>
+</html>
